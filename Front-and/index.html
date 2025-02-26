@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notificações Modernas</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+    
+        body {
+            font-family: Arial, sans-serif;
+            background: #f0f2f5;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+        }
+
+        h1 {
+            color: #007bff;
+            margin-bottom: 30px;
+        }
+
+        #enable-sound {
+            background: #007bff;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+
+        #enable-sound:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        #notifications {
+            max-width: 400px;
+            margin: 0 auto;
+            text-align: left;
+        }
+
+        .notification {
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            margin-bottom: 15px;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .notification:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+        }
+
+        .notification-icon {
+            background: #007bff;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            flex-shrink: 0;
+        }
+
+        .notification-icon i {
+            color: #fff;
+            font-size: 18px;
+        }
+
+        .notification-content {
+            flex-grow: 1;
+        }
+
+        .notification-content h3 {
+            margin: 0;
+            font-size: 16px;
+            color: #007bff;
+        }
+
+        .notification-content p {
+            margin: 5px 0 0;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .notification-content .notification-time {
+            font-size: 12px;
+            color: #999;
+            display: block;
+            margin-top: 5px;
+        }
+
+        /* Botão de fechar */
+        .notification-close {
+            color: #999;
+            cursor: pointer;
+            font-size: 14px;
+            margin-left: 10px;
+            transition: color 0.3s ease;
+        }
+
+        .notification-close:hover {
+            color: #ff4d4d;
+        }
+    </style>
+</head>
+<body>
+    <h1>Notificações em tempo real</h1>
+    <button id="enable-sound">Ativar Som de Notificação</button>
+    <div id="notifications"></div>
+
+    <audio id="notification-sound" src="notification-sound.mp3"></audio>
+
+    <script>
+        var urlEndpoint = 'http://localhost:8080/subscribe?identificador=189';
+        var eventSource;
+        let soundEnabled = false;
+
+
+        const enableSoundButton = document.getElementById("enable-sound");
+        enableSoundButton.addEventListener("click", () => {
+            soundEnabled = true;
+            enableSoundButton.textContent = "Som Ativado";
+            enableSoundButton.disabled = true;
+        });
+
+        function connectToServer() {
+            eventSource = new EventSource(urlEndpoint);
+
+            eventSource.addEventListener("EM_PREPARO", function (event) {
+                var data = JSON.parse(event.data);
+                exibirNotificacao("EM_PREPARO", data.message || "Seu pedido foi aceito e está sendo preparado!");
+            });
+
+            eventSource.addEventListener("SAIU_PARA_ENTREGA", function (event) {
+                var data = JSON.parse(event.data);
+                exibirNotificacao("SAIU_PARA_ENTREGA", data.message || "Oba! Seu pedido está a caminho!");
+            });
+
+            eventSource.onerror = function () {
+                console.error("Erro na conexão SSE. Tentando reconectar...");
+                eventSource.close();
+
+                setTimeout(connectToServer, 2000);
+            };
+
+            window.onbeforeunload = function () {
+                eventSource.close();
+            };
+        }
+        function exibirNotificacao(tipo, mensagem) {
+            var notificationsDiv = document.getElementById("notifications");       
+            if (soundEnabled) {
+                const notificationSound = document.getElementById("notification-sound");
+                notificationSound.play().catch(error => {
+                    console.error("Erro ao reproduzir o som:", error);
+                });
+            }
+
+            var div = document.createElement("div");
+            div.className = "notification";
+
+            var iconDiv = document.createElement("div");
+            iconDiv.className = "notification-icon";
+            var icon = document.createElement("i");
+            icon.className = "fas fa-bell";
+            iconDiv.appendChild(icon);
+
+            var contentDiv = document.createElement("div");
+            contentDiv.className = "notification-content";
+
+            var h3 = document.createElement("h3");
+            var p = document.createElement("p");
+
+            switch (tipo) {
+                case "EM_PREPARO":
+                    h3.textContent = "Pedido em Preparo";
+                    break;
+                case "SAIU_PARA_ENTREGA":
+                    h3.textContent = "Pedido Saiu para Entrega";
+                    break;
+                default:
+                    h3.textContent = "Nova Notificação";
+            }
+
+            p.textContent = mensagem;
+
+        
+            var timeSpan = document.createElement("span");
+            timeSpan.className = "notification-time";
+            timeSpan.textContent = "Agora";
+
+            var closeDiv = document.createElement("div");
+            closeDiv.className = "notification-close";
+            var closeIcon = document.createElement("i");
+            closeIcon.className = "fas fa-times";
+            closeDiv.appendChild(closeIcon);
+
+            contentDiv.appendChild(h3);
+            contentDiv.appendChild(p);
+            contentDiv.appendChild(timeSpan);
+
+            div.appendChild(iconDiv);
+            div.appendChild(contentDiv);
+            div.appendChild(closeDiv);
+
+            
+            notificationsDiv.prepend(div);
+
+       
+            closeDiv.addEventListener("click", function () {
+                div.remove();
+            });
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            connectToServer();
+        });
+    </script>
+</body>
+</html>
